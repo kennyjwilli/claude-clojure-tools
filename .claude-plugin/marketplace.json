@@ -7,7 +7,7 @@
     {
       "name": "clojure-tools",
       "source": "./",
-      "description": "Automatic parinfer formatting for Clojure files (.clj, .cljs, .cljc, .edn)",
+      "description": "Clojure development tools including REPL evaluation and parinfer formatting for Clojure files",
       "version": "1.0.0"
     }
   ]
