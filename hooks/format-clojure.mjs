@@ -35,7 +35,7 @@ process.stdin.on('end', () => {
 
     // Check if file is a Clojure file
     const ext = path.extname(filePath);
-    const clojureExtensions = ['.clj', '.cljs', '.cljc', '.edn'];
+    const clojureExtensions = ['.clj', '.cljs', '.cljc', '.cljd', '.bb', '.edn'];
 
     if (!clojureExtensions.includes(ext)) {
       process.exit(0);
