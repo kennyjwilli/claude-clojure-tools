@@ -1,0 +1,12 @@
+{
+  "name": "clojure-tools",
+  "version": "1.0.0",
+  "description": "Clojure development tools including automatic parinfer formatting.",
+  "author": {
+    "name": "Kenny"  
+  },
+  "repository": "https://github.com/kennyjwilli/claude-clojure-tools.git",
+  "license": "MIT",
+  "keywords": ["clojure", "formatting", "parinfer", "development"],
+  "hooks": "./hooks/hooks.json"
+}

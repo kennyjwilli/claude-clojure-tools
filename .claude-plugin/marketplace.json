@@ -1,0 +1,14 @@
+{
+  "name": "claude-clojure-tools",
+  "owner": {
+    "name": "Kenny Williams"
+  },
+  "plugins": [
+    {
+      "name": "clojure-tools",
+      "source": "./",
+      "description": "Automatic parinfer formatting for Clojure files (.clj, .cljs, .cljc, .edn)",
+      "version": "1.0.0"
+    }
+  ]
+}

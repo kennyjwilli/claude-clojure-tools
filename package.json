@@ -1,0 +1,11 @@
+{
+  "name": "clojure-tools",
+  "version": "1.0.0",
+  "description": "Claude Code plugin for Clojure development tools",
+  "type": "module",
+  "dependencies": {
+    "parinfer": "^3.13.1"
+  },
+  "author": "Kenny",
+  "license": "MIT"
+}
