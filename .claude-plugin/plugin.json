@@ -1,12 +1,13 @@
 {
   "name": "clojure-tools",
   "version": "1.0.0",
-  "description": "Clojure development tools including automatic parinfer formatting.",
+  "description": "Clojure development tools including automatic parinfer formatting and nREPL evaluation.",
   "author": {
-    "name": "Kenny"  
+    "name": "Kenny"
   },
   "repository": "https://github.com/kennyjwilli/claude-clojure-tools.git",
   "license": "MIT",
-  "keywords": ["clojure", "formatting", "parinfer", "development"],
-  "hooks": "./hooks/hooks.json"
+  "keywords": ["clojure", "formatting", "parinfer", "development", "repl", "nrepl"],
+  "hooks": "./hooks/hooks.json",
+  "skills": "./skills"
 }

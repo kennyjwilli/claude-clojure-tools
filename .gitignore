@@ -4,3 +4,4 @@ npm-debug.log
 .claude/settings.local.json
 .clj-kondo/.cache
 .lsp/.cache
+.nrepl-port

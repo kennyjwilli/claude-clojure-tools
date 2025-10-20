@@ -1,6 +1,6 @@
 # Clojure Tools
 
-A Claude Code plugin for Clojure development that automatically formats your code using Parinfer.
+A Claude Code plugin for Clojure development that automatically formats your code using Parinfer and enables interactive REPL evaluation.
 
 ## Features
 
@@ -13,6 +13,28 @@ Every time Claude Code edits or writes a Clojure file, this plugin automatically
 - `.cljs` - ClojureScript
 - `.cljc` - Clojure/ClojureScript
 - `.edn` - Extensible Data Notation
+
+### nREPL Evaluation
+
+Evaluate Clojure expressions directly in your running nREPL server. Claude Code can test code snippets, verify function behavior, and debug issues by evaluating expressions in your live REPL environment.
+
+**Requirements:**
+- [Babashka](https://babashka.org/) must be installed
+- An nREPL server must be running (with `.nrepl-port` file in project root)
+
+**Example usage:**
+```clojure
+;; Claude can evaluate expressions like:
+(+ 1 2 3)  ; => 6
+
+;; Test functions with specific inputs:
+(require '[clojure.string :as str])
+(str/upper-case "hello")  ; => "HELLO"
+
+;; Verify code behavior:
+(let [x 10 y 20]
+  (+ x y))  ; => 30
+```
 
 ## Installation
 
@@ -56,12 +78,6 @@ This plugin uses a PostToolUse hook that:
 2. Detects when a Clojure file has been modified
 3. Automatically applies Parinfer indent mode formatting
 4. Saves the formatted result back to the file
-
-
-## Roadmap
-
-- [ ] nREPL evaluation support for interactive development
-- [ ] Integration with clj-kondo for linting
 
 ## License
 
