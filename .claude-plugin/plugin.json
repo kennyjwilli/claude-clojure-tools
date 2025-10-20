@@ -9,5 +9,9 @@
   "license": "MIT",
   "keywords": ["clojure", "formatting", "parinfer", "development", "repl", "nrepl"],
   "hooks": "./hooks/hooks.json",
-  "skills": "./skills"
+  "mcpServers": {
+    "clojure-tools-mcp": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/mcp/clojure_tools_mcp.clj"
+    }
+  }
 }

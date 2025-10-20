@@ -1,0 +1,4 @@
+{:paths   ["mcp"]
+ :aliases {:nrepl {:extra-deps {nrepl/nrepl {:mvn/version "1.4.0"}}
+                   :jvm-opts   ["-Djdk.attach.allowAttachSelf"]
+                   :main-opts  ["-m" "nrepl.cmdline"]}}}

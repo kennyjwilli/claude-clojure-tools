@@ -5,3 +5,5 @@ npm-debug.log
 .clj-kondo/.cache
 .lsp/.cache
 .nrepl-port
+.idea
+*.iml
