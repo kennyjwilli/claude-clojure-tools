@@ -1,5 +1,10 @@
 Evaluate Clojure code in a running nREPL server. Use this tool to execute Clojure expressions, test functions, inspect values, debug code, or perform any Clojure computation.
 
+## Parameters
+
+- `code` (required): The Clojure code to evaluate
+- `timeout` (optional): Timeout in seconds (default: 30). If evaluation exceeds this time, it will be interrupted and an error will be returned.
+
 ## When to use this tool
 
 - Testing Clojure expressions and seeing their results

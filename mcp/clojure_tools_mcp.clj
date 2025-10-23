@@ -27,34 +27,60 @@
       (throw (ex-info "No .nrepl-port file found" {:type :no-nrepl-port})))
     (Integer/parseInt (str/trim (slurp port-file)))))
 
-(defn nrepl-eval
-  "Evaluate a Clojure expression via nREPL and return the result."
-  [{:keys [port code]}]
-  (with-open [socket (java.net.Socket. "localhost" port)
+(defn with-nrepl-connection
+  "Execute function f with nREPL connection. Provides write and read functions."
+  [{:keys [host port] :or {host "localhost"}} handler]
+  (with-open [socket (java.net.Socket. ^String host ^long port)
               out-stream (.getOutputStream socket)
               in-stream (java.io.PushbackInputStream. (.getInputStream socket))]
+    (handler {:write (fn [msg] (bencode/write-bencode out-stream msg))
+              :read  (fn [] (bencode/read-bencode in-stream))})))
 
-    ;; Send eval request
-    (bencode/write-bencode out-stream {"op" "eval" "code" code})
+(defn nrepl-clone-session
+  "Create a new nREPL session and return the session ID."
+  [{:keys [port]}]
+  (with-nrepl-connection {:port port}
+    (fn [{:keys [write read]}]
+      ;; Send clone request
+      (write {"op" "clone"})
+      ;; Read response
+      (let [response (read)
+            session-bytes (get response "new-session")]
+        (when-not session-bytes
+          (throw (ex-info "Failed to clone nREPL session" {:response response})))
+        (String. ^bytes session-bytes)))))
 
-    ;; Read responses until we get "done" status
-    (loop [result {:value nil :out "" :err ""}]
-      (let [response (bencode/read-bencode in-stream)
-            value-bytes (get response "value")
-            out-bytes (get response "out")
-            err-bytes (get response "err")
-            status-bytes (get response "status")
-            done? (and status-bytes (some #{"done"} (map #(String. ^bytes %) status-bytes)))
-            result' (cond-> result
-                      value-bytes
-                      (assoc :value (String. ^bytes value-bytes))
-                      out-bytes
-                      (update :out str (String. ^bytes out-bytes))
-                      err-bytes
-                      (update :err str (String. ^bytes err-bytes)))]
-        (if done?
-          result'
-          (recur result'))))))
+(defn nrepl-eval
+  "Evaluate a Clojure expression via nREPL and return the result."
+  [{:keys [port code session-id timeout-seconds]}]
+  (with-nrepl-connection {:port port}
+    (fn [{:keys [write read]}]
+      (let [_ (write {"op" "eval" "code" code "session" session-id})
+            read-loop (future
+                        (loop [result {:value nil :out "" :err ""}]
+                          (let [response (read)
+                                value-bytes (get response "value")
+                                out-bytes (get response "out")
+                                err-bytes (get response "err")
+                                status-bytes (get response "status")
+                                done? (and status-bytes (some #{"done"} (map #(String. ^bytes %) status-bytes)))
+                                result' (cond-> result
+                                          value-bytes
+                                          (assoc :value (String. ^bytes value-bytes))
+                                          out-bytes
+                                          (update :out str (String. ^bytes out-bytes))
+                                          err-bytes
+                                          (update :err str (String. ^bytes err-bytes)))]
+                            (if done?
+                              result'
+                              (recur result')))))]
+        (let [result (deref read-loop (* timeout-seconds 1000) ::timeout)]
+          (if (= result ::timeout)
+            (do
+              (write {"op" "interrupt" "session" session-id})
+              (throw (ex-info (str "Evaluation timed out after " timeout-seconds " seconds")
+                       {:type :timeout :timeout-seconds timeout-seconds})))
+            result))))))
 
 (defn handle-initialize [_]
   {:protocolVersion "2024-11-05"
@@ -67,32 +93,36 @@
    [{:name        "repl_eval"
      :description (read-script-file "tool_repl_eval_description.md")
      :inputSchema {:type       "object"
-                   :properties {:code {:type        "string"
-                                       :description "The Clojure code to evaluate"}}
+                   :properties {:code    {:type        "string"
+                                          :description "The Clojure code to evaluate"}
+                                :timeout {:type        "number"
+                                          :description "Timeout in seconds (default: 30)"
+                                          :default     30}}
                    :required   ["code"]}}]})
 
-(defn handle-tools-call [params]
+(defn handle-tools-call [{:keys [session-id]} params]
   (let [tool-name (get params "name")
         arguments (get params "arguments")]
     (case tool-name
       "repl_eval"
       (try
         (let [code (get arguments "code")
+              timeout (get arguments "timeout" 30)
               port (read-nrepl-port)
-              result (nrepl-eval {:port port :code code})
+              result (nrepl-eval {:port port :code code :session-id session-id :timeout-seconds timeout})
               output (str/join "\n" (filter seq [(:out result) (:err result) (:value result)]))]
           {:content [{:type "text"
                       :text output}]})
         (catch Exception e
           {:content [{:type "text"
-                      :text (str "Error: " (.getMessage e))}]
+                      :text (str "Error: " (ex-message e))}]
            :isError true}))
 
       {:content [{:type "text"
                   :text (str "Unknown tool: " tool-name)}]
        :isError true})))
 
-(defn handle-request [request]
+(defn handle-request [{:keys [request session-id]}]
   (let [method (get request "method")
         params (get request "params")
         id (get request "id")]
@@ -100,7 +130,7 @@
       (let [result (case method
                      "initialize" (handle-initialize params)
                      "tools/list" (handle-tools-list params)
-                     "tools/call" (handle-tools-call params)
+                     "tools/call" (handle-tools-call {:session-id session-id} params)
                      {:error {:code    -32601
                               :message (str "Method not found: " method)}})]
         (if (:error result)
@@ -117,27 +147,28 @@
                    :message (str "Internal error: " (.getMessage e))}}))))
 
 (defn repl-eval-init!
-  []
-  (let [port (read-nrepl-port)
-        repl-helpers-code (read-script-file "repl_helpers.clj")]
-    (nrepl-eval {:port port :code repl-helpers-code})
+  [{:keys [port session-id]}]
+  (let [repl-helpers-code (read-script-file "repl_helpers.clj")]
+    (nrepl-eval {:port port :code repl-helpers-code :session-id session-id :timeout-seconds 10})
     true))
 
 (defn -main [& args]
-  (repl-eval-init!)
-  ;; Read JSON-RPC messages from stdin and respond on stdout
-  (let [reader (io/reader *in*)]
-    (loop []
-      (when-let [line (.readLine reader)]
-        (when-not (str/blank? line)
-          (try
-            (let [request (json/parse-string line)
-                  response (handle-request request)]
-              (println (json/generate-string response))
-              (flush))
-            (catch Exception e
-              (binding [*out* *err*]
-                (println "Error processing request:" (.getMessage e))))))
-        (recur)))))
+  (let [port (read-nrepl-port)
+        session-id (nrepl-clone-session {:port port})]
+    (repl-eval-init! {:port port :session-id session-id})
+    ;; Read JSON-RPC messages from stdin and respond on stdout
+    (let [reader (io/reader *in*)]
+      (loop []
+        (when-let [line (.readLine reader)]
+          (when-not (str/blank? line)
+            (try
+              (let [request (json/parse-string line)
+                    response (handle-request {:request request :session-id session-id})]
+                (println (json/generate-string response))
+                (flush))
+              (catch Exception e
+                (binding [*out* *err*]
+                  (println "Error processing request:" (.getMessage e))))))
+          (recur))))))
 
 (apply -main *command-line-args*)
