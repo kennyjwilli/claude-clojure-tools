@@ -1,10 +1,11 @@
 #!/usr/bin/env bb
 
 (ns clojure-tools-mcp
-  (:require [bencode.core :as bencode]
-            [clojure.java.io :as io]
-            [clojure.string :as str]
-            [cheshire.core :as json]))
+  (:require
+    [bencode.core :as bencode]
+    [cheshire.core :as json]
+    [clojure.java.io :as io]
+    [clojure.string :as str]))
 
 ;; MCP Protocol Implementation (JSON-RPC over stdio)
 
@@ -90,15 +91,23 @@
 
 (defn handle-tools-list [_]
   {:tools
-   [{:name        "repl_eval"
-     :description (read-script-file "tool_repl_eval_description.md")
-     :inputSchema {:type       "object"
-                   :properties {:code    {:type        "string"
-                                          :description "The Clojure code to evaluate"}
-                                :timeout {:type        "number"
-                                          :description "Timeout in seconds (default: 30)"
-                                          :default     30}}
-                   :required   ["code"]}}]})
+   [{:name         "repl_eval"
+     :description  (read-script-file "tool_repl_eval_description.md")
+     :inputSchema  {:type       "object"
+                    :properties {:code    {:type        "string"
+                                           :description "The Clojure code to evaluate"}
+                                 :timeout {:type        "number"
+                                           :description "Timeout in seconds (default: 30)"
+                                           :default     30}}
+                    :required   ["code"]}
+     :outputSchema {:type       "object"
+                    :properties {:value  {:type        "string"
+                                          :description "The return value of the evaluated expression"}
+                                 :stdout {:type        "string"
+                                          :description "Standard output from the evaluation"}
+                                 :stderr {:type        "string"
+                                          :description "Standard error from the evaluation"}}
+                    :required   ["value"]}}]})
 
 (defn handle-tools-call [{:keys [session-id]} params]
   (let [tool-name (get params "name")
@@ -110,9 +119,14 @@
               timeout (get arguments "timeout" 30)
               port (read-nrepl-port)
               result (nrepl-eval {:port port :code code :session-id session-id :timeout-seconds timeout})
-              output (str/join "\n" (filter seq [(:out result) (:err result) (:value result)]))]
-          {:content [{:type "text"
-                      :text output}]})
+              structured (cond-> {:value (or (:value result) "")}
+                           (not (str/blank? (:out result)))
+                           (assoc :stdout (:out result))
+                           (not (str/blank? (:err result)))
+                           (assoc :stderr (:err result)))]
+          {:content           [{:type "text"
+                                :text (json/generate-string structured)}]
+           :structuredContent structured})
         (catch Exception e
           {:content [{:type "text"
                       :text (str "Error: " (ex-message e))}]
