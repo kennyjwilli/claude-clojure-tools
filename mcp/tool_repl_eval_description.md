@@ -16,12 +16,17 @@ Evaluate Clojure code in a running nREPL server. Use this tool to execute Clojur
 
 ## Code Exploration Helpers
 
-The `clojure-tools-mcp.repl-tools` namespace provides helper functions for exploring codebases. Use these extensively to discover and understand code:
+**IMPORTANT: Always explore unfamiliar codebases before writing code.** The `clojure-tools-mcp.repl-tools` namespace provides essential helper functions for discovery and understanding.
 
+**Typical workflow:** Start with `list-ns` to see available namespaces → Use `list-vars` to explore a namespace's API → Use `doc-symbol` or `source-symbol` for detailed information → Use `find-symbols` when searching across the entire codebase.
+
+Available helpers:
 - `(list-ns)` - List all available namespaces
 - `(list-vars 'namespace)` - Show all public vars in a namespace with docs and arglists
 - `(doc-symbol 'symbol)` - View detailed documentation for a symbol
+- `(doc-namespace 'namespace)` - View namespace-level documentation
 - `(source-symbol 'symbol)` - Display source code for a var
+- `(describe-spec 'spec)` - Show detailed spec information
 - `(find-symbols "pattern")` - Search for symbols matching a pattern across all namespaces
 
 Examples:
