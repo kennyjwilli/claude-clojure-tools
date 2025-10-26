@@ -45,26 +45,20 @@
 (defn read-msg
   "Read and parse a bencode message, converting byte arrays to strings."
   [response]
-  (let [res (zipmap (map keyword (keys response))
-                    (map #(if (bytes? %)
-                            (String. ^bytes %)
-                            %)
-                         (vals response)))
-        res (if-let [status (:status res)]
-              (assoc res :status (mapv bytes->str status))
-              res)
-        res (if-let [sessions (:sessions res)]
-              (assoc res :sessions (mapv bytes->str sessions))
-              res)]
-    res))
+  (let [{:keys [status sessions] :as res}
+        (into {}
+          (map (fn [[k v]] [(keyword k) (if (bytes? v) (String. ^bytes v) v)]))
+          response)]
+    (cond-> res
+      status (assoc :status (mapv bytes->str status))
+      sessions (assoc :sessions (mapv bytes->str sessions)))))
 
 (defn read-reply
   "Read nREPL responses until we get one matching the session and id."
   [read-fn session id]
   (loop []
     (let [msg (read-msg (read-fn))]
-      (if (and (= (:session msg) session)
-               (= (:id msg) id))
+      (if (and (= (:session msg) session) (= (:id msg) id))
         msg
         (recur)))))
 
@@ -114,6 +108,32 @@
                        {:type :timeout :timeout-seconds timeout-seconds})))
             result))))))
 
+(defn nrepl-eval-with-errors
+  "Evaluate code via nREPL and automatically fetch stacktrace on error.
+  If the evaluation results in an eval-error status, this function will
+  automatically evaluate (clojure.stacktrace/print-stack-trace *e) and
+  append the stacktrace to the stderr output.
+  Returns the same structure as nrepl-eval with enhanced error information."
+  [{:keys [port code session-id timeout-seconds]}]
+  (let [do-eval #(nrepl-eval {:port            port
+                              :code            %
+                              :session-id      session-id
+                              :timeout-seconds timeout-seconds})
+        result (do-eval code)
+        ;; Check if any response has eval-error status
+        {eval-errors     true
+         not-eval-errors false} (group-by
+                                  (fn [resp] (boolean (some #(= % "eval-error") (:status resp))))
+                                  (:responses result))]
+    (if (seq eval-errors)
+      ;; Fetch stacktrace and append to responses
+      (let [stacktrace-result (do-eval "(binding [*out* *err*] (clojure.stacktrace/print-stack-trace *e))")
+            stacktrace-err (str/join (keep :err (:responses stacktrace-result)))]
+        (if (seq stacktrace-err)
+          {:responses (conj not-eval-errors {:session session-id :err stacktrace-err})}
+          result))
+      result)))
+
 (defn process-nrepl-result
   "Process nREPL evaluation result into a structured map.
   Extracts :stdout, :stderr, :values, and :ex from the responses.
@@ -130,48 +150,28 @@
       (seq stdout-parts)
       (assoc :stdout (str/join stdout-parts))
       (seq stderr-parts)
-      (assoc :stderr (str/join stderr-parts))
-      (seq ex-parts)
-      (assoc :ex (str/join " " ex-parts)))))
+      (assoc :stderr (str/join stderr-parts)))))
 
 (comment
   (def port (read-nrepl-port :path "example-project/.nrepl-port"))
   (def port 5567)
   (def session-id (nrepl-clone-session {:port port}))
-  (nrepl-eval {:port            port
-               :code            "(do (require '[example-test] :reload) (in-ns 'example-test))"
-               :session-id      session-id
-               :timeout-seconds 30})
-  (nrepl-eval {:port            port
-               :code            "(require '[example-test] :reload) "
-               :session-id      session-id
-               :timeout-seconds 30})
+  (defn do-eval [code]
+    (nrepl-eval-with-errors
+      {:port            port
+       :code            code
+       :session-id      session-id
+       :timeout-seconds 30}))
 
-  (def r (nrepl-eval {:port            port
-                :code            "(example-test/oops :a)"
-                :session-id      session-id
-                :timeout-seconds 30}))
+  (process-nrepl-result (do-eval "(example-test/oops :a)"))
 
-  (nrepl-eval {:port            port
-               :code            "(require '[other-file] :reload) "
-               :session-id      session-id
-               :timeout-seconds 30})
-  (nrepl-eval {:port            port
-               :code            "(clojure.test/run-tests)"
-               :session-id      session-id
-               :timeout-seconds 30})
-  (nrepl-eval {:port            port
-               :code            "(clojure.stacktrace/print-stack-trace *e)"
-               :session-id      session-id
-               :timeout-seconds 30})
-
-  (def r (nrepl-eval {:port            port
-                :code            "(str 1)"
-                :session-id      session-id
-                :timeout-seconds 30}))
-
-  (process-nrepl-result r)
+  (do-eval "(require '[example-test] :reload) ")
+  (do-eval "(require '[other-file] :reload)")
+  (process-nrepl-result (do-eval "(clojure.test/run-tests)"))
+  (process-nrepl-result (do-eval "(inc 1)"))
+  (process-nrepl-result (do-eval "(inc 1) (inc :a) (inc 3)"))
   )
+
 
 
 (defn handle-initialize [_]
@@ -198,9 +198,7 @@
                                  :stdout {:type        "string"
                                           :description "Standard output from the evaluation"}
                                  :stderr {:type        "string"
-                                          :description "Standard error from the evaluation"}
-                                 :ex     {:type        "string"
-                                          :description "Exception information if an error occurred"}}}}]})
+                                          :description "Standard error from the evaluation"}}}}]})
 
 (defn handle-tools-call [{:keys [session-id]} params]
   (let [tool-name (get params "name")
@@ -211,7 +209,10 @@
         (let [code (get arguments "code")
               timeout (get arguments "timeout" 30)
               port (read-nrepl-port)
-              result (nrepl-eval {:port port :code code :session-id session-id :timeout-seconds timeout})
+              result (nrepl-eval-with-errors {:port            port
+                                              :code            code
+                                              :session-id      session-id
+                                              :timeout-seconds timeout})
               structured (process-nrepl-result result)]
           {:content           [{:type "text"
                                 :text (json/generate-string structured)}]
