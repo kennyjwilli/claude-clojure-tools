@@ -275,4 +275,5 @@
                   (println "Error processing request:" (.getMessage e))))))
           (recur))))))
 
-;(apply -main *command-line-args*)
+(when (= *file* (System/getProperty "babashka.file"))
+  (apply -main *command-line-args*))
