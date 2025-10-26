@@ -1,0 +1,8 @@
+{:aliases {:test        {:extra-paths ["test"]}
+           :nrepl       {:extra-deps {nrepl/nrepl {:mvn/version "1.4.0"}}
+                         :jvm-opts   ["-Djdk.attach.allowAttachSelf"]
+                         :main-opts  ["-m" "nrepl.cmdline" "-p" "5566"]}
+           :nrepl-proxy {:extra-deps {com.lambdaisland/nrepl-proxy {:mvn/version "0.2.8-alpha"}}
+                         :exec-fn    lambdaisland.nrepl-proxy/start
+                         :exec-args  {:port   5567
+                                      :attach 5566}}}}

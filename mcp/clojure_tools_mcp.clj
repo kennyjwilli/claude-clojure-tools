@@ -165,8 +165,8 @@
 
   (process-nrepl-result (do-eval "(example-test/oops :a)"))
 
-  (do-eval "(require '[example-test] :reload) ")
-  (do-eval "(require '[other-file] :reload)")
+  (do-eval "(require '[example-test] :reload)")
+  (do-eval "(require '[with-invalid-form] :reload)")
   (process-nrepl-result (do-eval "(clojure.test/run-tests)"))
   (process-nrepl-result (do-eval "(inc 1)"))
   (process-nrepl-result (do-eval "(inc 1) (inc :a) (inc 3)"))
