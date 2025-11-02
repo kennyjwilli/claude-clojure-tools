@@ -38,25 +38,6 @@ Evaluate Clojure expressions directly in your nREPL server. Claude Code can test
 
 3. Restart Claude Code to activate the plugin
 
-### Local Installation (for development)
-
-1. Clone this repository
-2. Install dependencies:
-```bash
-cd claude-clojure-tools
-npm install
-```
-
-3. Add as a local marketplace:
-```
-/plugin marketplace add /path/to/claude-clojure-tools
-```
-
-4. Install the plugin:
-```
-/plugin install clojure-tools@claude-clojure-tools
-```
-
 ## Configuration
 
 Configuration is **optional** - the plugin works out of the box with sensible defaults. If you need to customize the nREPL behavior, create a `clojure-tools-mcp-config.edn` file in your project root.
@@ -79,6 +60,25 @@ Configuration is **optional** - the plugin works out of the box with sensible de
 - **`:nrepl-aliases`** - Vector of aliases to include when starting the nREPL server (e.g., `[:dev :test]`)
 
 - **`:nrepl-version`** - nREPL version string to use (default: `"1.5.1"`)
+
+## Local Installation (for development)
+
+1. Clone this repository
+2. Install dependencies:
+```bash
+cd claude-clojure-tools
+npm install
+```
+
+3. Add as a local marketplace:
+```
+/plugin marketplace add /path/to/claude-clojure-tools
+```
+
+4. Install the plugin:
+```
+/plugin install clojure-tools@claude-clojure-tools
+```
 
 ## License
 
