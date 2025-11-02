@@ -63,11 +63,13 @@
         (recur)))))
 
 (defn with-nrepl-connection
-  "Execute function f with nREPL connection. Provides write and read functions."
-  [{:keys [host port] :or {host "localhost"}} handler]
+  "Execute function f with nREPL connection. Provides write and read functions.
+  Optional :timeout-ms sets socket read timeout in milliseconds."
+  [{:keys [host port timeout-ms] :or {host "localhost"}} handler]
   (with-open [socket (java.net.Socket. ^String host ^long port)
               out-stream (.getOutputStream socket)
               in-stream (java.io.PushbackInputStream. (.getInputStream socket))]
+    (when timeout-ms (.setSoTimeout socket timeout-ms))
     (handler {:write (fn [msg] (bencode/write-bencode out-stream msg))
               :read  (fn [] (bencode/read-bencode in-stream))})))
 
@@ -88,20 +90,23 @@
 (defn nrepl-eval
   "Evaluate a Clojure expression via nREPL and return the result."
   [{:keys [port code session-id timeout-seconds]}]
-  (with-nrepl-connection {:port port}
+  (with-nrepl-connection {:port port :timeout-ms (* timeout-seconds 1000)}
     (fn [{:keys [write read]}]
       (let [id (next-id)
             _ (write {"op" "eval" "code" code "session" session-id "id" id})
             read-loop (future
-                        (loop [result {:responses []}]
-                          (let [response (read-reply read session-id id)
-                                done? (some #(= % "done") (:status response))
-                                result' (update result :responses conj response)]
-                            (if done?
-                              result'
-                              (recur result')))))]
+                        (try
+                          (loop [result {:responses []}]
+                            (let [response (read-reply read session-id id)
+                                  done? (some #(= % "done") (:status response))
+                                  result' (update result :responses conj response)]
+                              (if done?
+                                result'
+                                (recur result'))))
+                          (catch java.net.SocketTimeoutException _ ::socket-timeout)))]
         (let [result (deref read-loop (* timeout-seconds 1000) ::timeout)]
-          (if (= result ::timeout)
+          (case
+            (::timeout ::socket-timeout)
             (do
               (write {"op" "interrupt" "session" session-id})
               (throw (ex-info (str "Evaluation timed out after " timeout-seconds " seconds")
@@ -169,10 +174,7 @@
   (do-eval "(require '[with-invalid-form] :reload)")
   (process-nrepl-result (do-eval "(clojure.test/run-tests)"))
   (process-nrepl-result (do-eval "(inc 1)"))
-  (process-nrepl-result (do-eval "(inc 1) (inc :a) (inc 3)"))
-  )
-
-
+  (process-nrepl-result (do-eval "(inc 1) (inc :a) (inc 3)")))
 
 (defn handle-initialize [_]
   {:protocolVersion "2024-11-05"
