@@ -160,8 +160,10 @@
                           (catch java.net.SocketTimeoutException _ ::socket-timeout)))]
         (let [result (deref read-loop (* timeout-seconds 1000) ::timeout)]
           (if (#{::timeout ::socket-timeout} result)
-            (do
-              (write {"op" "interrupt" "session" session-id})
+            (let [interrupt-id (next-id)]
+              (write {"op" "interrupt" "session" session-id "interrupt-id" id "id" interrupt-id})
+              ;; Wait for interrupt acknowledgment
+              (read-reply read session-id interrupt-id)
               (throw (ex-info (str "Evaluation timed out after " timeout-seconds " seconds")
                        {:type :timeout :timeout-seconds timeout-seconds})))
             result))))))
