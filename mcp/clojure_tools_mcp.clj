@@ -59,9 +59,10 @@
         aliases (if (seq nrepl-aliases)
                   [(str "-M" (str/join ":" (map name nrepl-aliases)))]
                   ["-M"])
+        jdk-opts ["-J-Djdk.attach.allowAttachSelf"]
         sdeps ["-Sdeps" (format "{:deps {nrepl/nrepl {:mvn/version \"%s\"}}}" nrepl-version)]
         main ["-m" "nrepl.cmdline"]]
-    (vec (concat base sdeps aliases main))))
+    (vec (concat base sdeps jdk-opts aliases main))))
 
 (defn wait-for-nrepl-ready
   "Wait for nREPL to start by monitoring stdout. Returns port number."
