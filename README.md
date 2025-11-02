@@ -16,11 +16,11 @@ Every time Claude Code edits or writes a Clojure file, this plugin automatically
 
 ### nREPL Evaluation
 
-Evaluate Clojure expressions directly in your running nREPL server. Claude Code can test code snippets, verify function behavior, and debug issues by evaluating expressions in your live REPL environment.
+Evaluate Clojure expressions directly in your nREPL server. Claude Code can test code snippets, verify function behavior, and debug issues by evaluating expressions in your REPL environment.
 
 **Requirements:**
 - [Babashka](https://babashka.org/) must be installed
-- An nREPL server must be running (with `.nrepl-port` file in project root)
+- [Clojure CLI](https://clojure.org/guides/install_clojure) must be installed (required for auto-starting nREPL)
 
 **Example usage:**
 ```clojure
@@ -70,6 +70,29 @@ npm install
 ```
 /plugin install clojure-tools@claude-clojure-tools
 ```
+
+## Configuration
+
+Configuration is **optional** - the plugin works out of the box with sensible defaults. If you need to customize the nREPL behavior, create a `clojure-tools-mcp-config.edn` file in your project root.
+
+### Default Configuration
+
+```clojure
+{:nrepl-mode    :always-start
+ :nrepl-aliases []
+ :nrepl-version "1.5.1"}
+```
+
+### Configuration Options
+
+- **`:nrepl-mode`** - Controls how the nREPL server is managed:
+  - `:always-start` (default) - Automatically starts a new nREPL server when the MCP starts
+  - `:prefer-existing` - Uses an existing nREPL (`.nrepl-port` file) if available, otherwise starts a new one
+  - `:require-existing` - Only uses an existing nREPL, fails if not found
+
+- **`:nrepl-aliases`** - Vector of aliases to include when starting the nREPL server (e.g., `[:dev :test]`)
+
+- **`:nrepl-version`** - nREPL version string to use (default: `"1.5.1"`)
 
 ## How It Works
 
