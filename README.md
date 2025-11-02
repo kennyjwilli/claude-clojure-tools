@@ -22,20 +22,6 @@ Evaluate Clojure expressions directly in your nREPL server. Claude Code can test
 - [Babashka](https://babashka.org/) must be installed
 - [Clojure CLI](https://clojure.org/guides/install_clojure) must be installed (required for auto-starting nREPL)
 
-**Example usage:**
-```clojure
-;; Claude can evaluate expressions like:
-(+ 1 2 3)  ; => 6
-
-;; Test functions with specific inputs:
-(require '[clojure.string :as str])
-(str/upper-case "hello")  ; => "HELLO"
-
-;; Verify code behavior:
-(let [x 10 y 20]
-  (+ x y))  ; => 30
-```
-
 ## Installation
 
 ### From GitHub
@@ -93,14 +79,6 @@ Configuration is **optional** - the plugin works out of the box with sensible de
 - **`:nrepl-aliases`** - Vector of aliases to include when starting the nREPL server (e.g., `[:dev :test]`)
 
 - **`:nrepl-version`** - nREPL version string to use (default: `"1.5.1"`)
-
-## How It Works
-
-This plugin uses a PostToolUse hook that:
-1. Monitors Edit and Write tool operations
-2. Detects when a Clojure file has been modified
-3. Automatically applies Parinfer indent mode formatting
-4. Saves the formatted result back to the file
 
 ## License
 
