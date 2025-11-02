@@ -56,11 +56,12 @@
   [{:keys [nrepl-aliases nrepl-version]
     :or   {nrepl-version "1.5.1"}}]
   (let [base ["clojure"]
-        aliases (when (seq nrepl-aliases)
-                  [(str "-A" (str/join ":" (map name nrepl-aliases)))])
+        aliases (if (seq nrepl-aliases)
+                  [(str "-M" (str/join ":" (map name nrepl-aliases)))]
+                  ["-M"])
         sdeps ["-Sdeps" (format "{:deps {nrepl/nrepl {:mvn/version \"%s\"}}}" nrepl-version)]
         main ["-m" "nrepl.cmdline"]]
-    (vec (concat base aliases sdeps main))))
+    (vec (concat base sdeps aliases main))))
 
 (defn wait-for-nrepl-ready
   "Wait for nREPL to start by monitoring stdout. Returns port number."
