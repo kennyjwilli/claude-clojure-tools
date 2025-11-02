@@ -2,12 +2,15 @@
 
 (ns clojure-tools-mcp
   (:require
+    [babashka.process :as bp]
     [bencode.core :as bencode]
     [cheshire.core :as json]
+    [clojure.edn :as edn]
     [clojure.java.io :as io]
     [clojure.string :as str]))
 
-;; MCP Protocol Implementation (JSON-RPC over stdio)
+(def default-config {:nrepl-mode :always-start :nrepl-aliases []})
+(def config-file-name "clojure-tools-mcp-config.edn")
 
 (defn read-script-file
   "Read a file from the same directory as this script."
@@ -20,13 +23,63 @@
     (catch Exception e
       nil)))
 
+(defn read-config
+  "Read configuration from config.edn file. Returns default config if file doesn't exist."
+  []
+  (let [config-file (io/file config-file-name)]
+    (merge
+      default-config
+      (when (.exists config-file)
+        (try
+          (edn/read-string (slurp config-file))
+          (catch Exception e
+            (binding [*out* *err*]
+              (println "Warning: Failed to parse config.edn, using defaults:" (.getMessage e)))
+            nil))))))
+
 (defn read-nrepl-port
   "Read the nREPL port from .nrepl-port file in current directory."
   [& {:keys [path] :or {path ".nrepl-port"}}]
   (let [port-file (io/file path)]
-    (when-not (.exists port-file)
-      (throw (ex-info "No .nrepl-port file found" {:type :no-nrepl-port})))
-    (Integer/parseInt (str/trim (slurp port-file)))))
+    (when (.exists port-file)
+      (parse-long (str/trim (slurp port-file))))))
+
+(defn parse-nrepl-port
+  "Parse port number from nREPL startup line.
+  Example line: 'nREPL server started on port 53427 on host localhost - nrepl://localhost:53427'"
+  [line]
+  (when-let [match (re-find #"port (\d+)" line)]
+    (parse-long (second match))))
+
+(defn build-nrepl-command
+  "Build clojure CLI command to start nREPL with given configuration."
+  [{:keys [nrepl-aliases nrepl-version]
+    :or   {nrepl-version "1.5.1"}}]
+  (let [base ["clojure"]
+        aliases (when (seq nrepl-aliases)
+                  [(str "-A" (str/join ":" (map name nrepl-aliases)))])
+        sdeps ["-Sdeps" (format "{:deps {nrepl/nrepl {:mvn/version \"%s\"}}}" nrepl-version)]
+        main ["-m" "nrepl.cmdline"]]
+    (vec (concat base aliases sdeps main))))
+
+(defn wait-for-nrepl-ready
+  "Wait for nREPL to start by monitoring stdout. Returns port number."
+  [process-map]
+  (with-open [rdr (io/reader (:out process-map))]
+    (loop []
+      (if-let [line (.readLine rdr)]
+        (do
+          (println line)
+          (parse-nrepl-port line))
+        (throw (ex-info "nREPL process ended without starting" {:type :nrepl-startup-failed}))))))
+
+(defn start-nrepl-process!
+  [config]
+  (let [cmd (build-nrepl-command config)
+        process-map (bp/process cmd {:err :inherit})
+        _ (.addShutdownHook (Runtime/getRuntime) (Thread. #(bp/destroy-tree process-map)))
+        port (wait-for-nrepl-ready process-map)]
+    port))
 
 (def current-id (atom 0))
 
@@ -105,8 +158,7 @@
                                 (recur result'))))
                           (catch java.net.SocketTimeoutException _ ::socket-timeout)))]
         (let [result (deref read-loop (* timeout-seconds 1000) ::timeout)]
-          (case
-            (::timeout ::socket-timeout)
+          (if (#{::timeout ::socket-timeout} result)
             (do
               (write {"op" "interrupt" "session" session-id})
               (throw (ex-info (str "Evaluation timed out after " timeout-seconds " seconds")
@@ -202,23 +254,31 @@
                                  :stderr {:type        "string"
                                           :description "Standard error from the evaluation"}}}}]})
 
-(defn handle-tools-call [{:keys [session-id]} params]
+(defn handle-tools-call [{:keys [nrepl-state-promise]} params]
   (let [tool-name (get params "name")
         arguments (get params "arguments")]
     (case tool-name
       "repl_eval"
       (try
-        (let [code (get arguments "code")
-              timeout (get arguments "timeout" 30)
-              port (read-nrepl-port)
-              result (nrepl-eval-with-errors {:port            port
-                                              :code            code
-                                              :session-id      session-id
-                                              :timeout-seconds timeout})
-              structured (process-nrepl-result result)]
-          {:content           [{:type "text"
-                                :text (json/generate-string structured)}]
-           :structuredContent structured})
+        ;; Block until nREPL is ready
+        (let [nrepl-state @nrepl-state-promise]
+          ;; Check if promise delivered an exception
+          (if (instance? Exception nrepl-state)
+            {:content [{:type "text"
+                        :text (str "nREPL not available: " (ex-message nrepl-state))}]
+             :isError true}
+            ;; nREPL is ready, proceed with evaluation
+            (let [{:keys [port session-id]} nrepl-state
+                  code (get arguments "code")
+                  timeout (get arguments "timeout" 30)
+                  result (nrepl-eval-with-errors {:port            port
+                                                  :code            code
+                                                  :session-id      session-id
+                                                  :timeout-seconds timeout})
+                  structured (process-nrepl-result result)]
+              {:content           [{:type "text"
+                                    :text (json/generate-string structured)}]
+               :structuredContent structured})))
         (catch Exception e
           {:content [{:type "text"
                       :text (str "Error: " (ex-message e))}]
@@ -228,7 +288,7 @@
                   :text (str "Unknown tool: " tool-name)}]
        :isError true})))
 
-(defn handle-request [{:keys [request session-id]}]
+(defn handle-request [{:keys [request nrepl-state-promise]}]
   (let [method (get request "method")
         params (get request "params")
         id (get request "id")]
@@ -236,7 +296,7 @@
       (let [result (case method
                      "initialize" (handle-initialize params)
                      "tools/list" (handle-tools-list params)
-                     "tools/call" (handle-tools-call {:session-id session-id} params)
+                     "tools/call" (handle-tools-call {:nrepl-state-promise nrepl-state-promise} params)
                      {:error {:code    -32601
                               :message (str "Method not found: " method)}})]
         (if (:error result)
@@ -258,10 +318,38 @@
     (nrepl-eval {:port port :code repl-helpers-code :session-id session-id :timeout-seconds 10})
     true))
 
+(defn ensure-nrepl!
+  [config]
+  (let [{:keys [nrepl-mode]} config
+        repl-state-promise (promise)]
+    (future
+      (try
+        (let [port (case nrepl-mode
+                     :always-start
+                     (start-nrepl-process! config)
+                     :prefer-existing
+                     (if-let [port (read-nrepl-port)]
+                       port
+                       (start-nrepl-process! config))
+                     :require-existing
+                     (if-let [port (read-nrepl-port)]
+                       port
+                       (throw (ex-info "Existing REPL not running" {})))
+                     (throw (ex-info (format "Invalid nrepl mode %s " nrepl-mode) {})))
+              session-id (nrepl-clone-session {:port port})
+              nrepl-state {:port port :session-id session-id}
+              _ (repl-eval-init! nrepl-state)]
+          (deliver repl-state-promise nrepl-state))
+        (catch Exception e
+          (binding [*out* *err*]
+            (println "Failed to start nREPL:" (.getMessage e)))
+          (deliver repl-state-promise e))))
+    repl-state-promise))
+
 (defn -main [& args]
-  (let [port (read-nrepl-port)
-        session-id (nrepl-clone-session {:port port})]
-    (repl-eval-init! {:port port :session-id session-id})
+  (let [config (read-config)
+        nrepl-state-promise (ensure-nrepl! config)]
+
     ;; Read JSON-RPC messages from stdin and respond on stdout
     (let [reader (io/reader *in*)]
       (loop []
@@ -269,7 +357,8 @@
           (when-not (str/blank? line)
             (try
               (let [request (json/parse-string line)
-                    response (handle-request {:request request :session-id session-id})]
+                    response (handle-request {:request             request
+                                              :nrepl-state-promise nrepl-state-promise})]
                 (println (json/generate-string response))
                 (flush))
               (catch Exception e
