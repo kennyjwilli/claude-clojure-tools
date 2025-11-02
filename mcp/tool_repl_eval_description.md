@@ -18,37 +18,50 @@ Evaluate Clojure code in a running nREPL server. Use this tool to execute Clojur
 
 **IMPORTANT: Always explore unfamiliar codebases before writing code.** The `clojure-tools-mcp.repl-tools` namespace provides essential helper functions for discovery and understanding.
 
-**Typical workflow:** Start with `list-ns` to see available namespaces → Use `list-vars` to explore a namespace's API → Use `doc-symbol` or `source-symbol` for detailed information → Use `find-symbols` when searching across the entire codebase.
+**Typical workflow:** Start with `search-code` to find relevant namespaces, symbols, and specs → Use `doc-namespace` to understand a namespace's purpose → Use `list-vars` to explore the namespace's API → Use `doc-symbol`, `source-symbol`, or `describe-spec` for detailed information about specific code artifacts.
 
 Available helpers:
+
+**Search functions** (accept both string for substring matching and regex patterns):
+- `(search-code "pattern")` - **PRIMARY SEARCH TOOL** - Comprehensively search across namespaces, symbols, and specs, printing results in organized sections
+- `(find-namespaces "pattern")` - Returns vector of namespace names matching the pattern
+- `(find-symbols "pattern")` - Returns vector of qualified symbol names matching the pattern
+- `(find-specs "pattern")` - Returns vector of spec keys (keywords from `s/def`, symbols from `s/fdef`) matching the pattern
+
+**Exploration and documentation functions**:
 - `(list-ns)` - List all available namespaces
 - `(list-vars 'namespace)` - Show all public vars in a namespace with docs and arglists
-- `(doc-symbol 'symbol)` - View detailed documentation for a symbol
 - `(doc-namespace 'namespace)` - View namespace-level documentation
+- `(doc-symbol 'symbol)` - View detailed documentation for a symbol
 - `(source-symbol 'symbol)` - Display source code for a var
 - `(describe-spec 'spec)` - Show detailed spec information
-- `(find-symbols "pattern")` - Search for symbols matching a pattern across all namespaces
 
 Examples:
 ```clojure
-;; Discover what namespaces exist
 (require '[clojure-tools-mcp.repl-tools :as repl])
+
+;; PRIMARY: Search across all code artifacts (namespaces, symbols, and specs)
+(repl/search-code "user")
+;; Prints organized sections showing matching namespaces, symbols, and specs
+
+;; Search with regex patterns for more precise matching
+(repl/search-code #"map$")
+;; Finds items ending with "map"
+
+;; Complete workflow example: search → understand → explore → details
+(repl/search-code "auth")           ; Find authentication-related code
+(repl/doc-namespace 'myapp.auth)    ; Understand the auth namespace
+(repl/list-vars 'myapp.auth)        ; See all functions in the namespace
+(repl/doc-symbol 'myapp.auth/login) ; Get detailed docs for login function
+(repl/describe-spec :myapp.auth/credentials) ; View spec for credentials
+
+;; Browse all available namespaces
 (repl/list-ns)
-
-;; Explore a namespace's API
-(repl/list-vars 'clojure.string)
-
-;; Find all functions with "map" in the name
-(repl/find-symbols "map")
 ```
-
-## Prerequisites
-
-IMPORTANT: This tool requires a running nREPL server with a `.nrepl-port` file in the current working directory. The tool will fail if no nREPL server is running.
 
 ## How it works
 
-The tool connects to the nREPL server via the port specified in `.nrepl-port`, evaluates the provided Clojure code, and returns:
+The tool connects to the running nREPL server and evaluates the provided Clojure code, and returns:
 - The evaluation result (the value of the last expression)
 - Any stdout output (from println, print, etc.)
 - Any stderr output (errors, warnings)

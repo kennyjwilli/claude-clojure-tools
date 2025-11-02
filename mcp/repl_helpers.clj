@@ -92,25 +92,80 @@
     (println (str "Error: Spec not found: " spec)))
   nil)
 
+(defn- pattern->match-fn
+  [pattern]
+  (if (instance? java.util.regex.Pattern pattern)
+    #(re-find pattern %)
+    #(str/includes? % (str pattern))))
+
+(defn find-namespaces
+  "Find namespaces matching the given pattern.
+   Pattern can be a string (for substring matching) or a regex pattern.
+   Returns a vector of matching namespace names."
+  [pattern]
+  (let [match-fn (pattern->match-fn pattern)]
+    (vec (sort (for [ns (all-ns)
+                     :let [ns-name (str (ns-name ns))]
+                     :when (match-fn ns-name)]
+                 ns-name)))))
+
 (defn find-symbols
   "Find symbols matching the given pattern across all namespaces.
    Pattern can be a string (for substring matching) or a regex pattern.
-   Matches against both namespace and symbol name in the format 'namespace/symbol'."
+   Matches against both namespace and symbol name in the format 'namespace/symbol'.
+   Returns a vector of matching qualified symbol names."
   [pattern]
-  (let [match-fn (cond
-                   (instance? java.util.regex.Pattern pattern)
-                   #(re-find pattern %)
-                   :else
-                   #(str/includes? % (str pattern)))
+  (let [match-fn (pattern->match-fn pattern)]
+    (vec (sort (for [ns (all-ns)
+                     :let [ns-name (str (ns-name ns))]
+                     [sym-name] (ns-publics ns)
+                     :let [qualified-name (str ns-name "/" (name sym-name))]
+                     :when (match-fn qualified-name)]
+                 qualified-name)))))
 
-        matches (sort (for [ns (all-ns)
-                            :let [ns-name (str (ns-name ns))]
-                            [sym-name] (ns-publics ns)
-                            :let [qualified-name (str ns-name "/" (name sym-name))]
-                            :when (match-fn qualified-name)]
-                        qualified-name))]
+(defn find-specs
+  "Find specs matching the given pattern in the spec registry.
+   Pattern can be a string (for substring matching) or a regex pattern.
+   Searches both keyword specs (from s/def) and symbol specs (from s/fdef).
+   Returns a vector of matching spec keys (keywords or symbols)."
+  [pattern]
+  (let [match-fn (pattern->match-fn pattern)]
+    (vec (sort-by str (for [spec-key (keys (s/registry))
+                            :let [spec-name (str spec-key)]
+                            :when (match-fn spec-name)]
+                        spec-key)))))
+
+(defn search-code
+  "Search for namespaces, symbols, and specs matching the given pattern.
+   Pattern can be a string (for substring matching) or a regex pattern.
+   Prints results in separate sections for namespaces, symbols, and specs."
+  [pattern]
+  (let [namespaces (find-namespaces pattern)
+        symbols (find-symbols pattern)
+        specs (find-specs pattern)]
+
+    ;; Print namespaces
+    (println (str "Namespaces matching '" pattern "':"))
+    (if (empty? namespaces)
+      (println "  (none)")
+      (doseq [ns namespaces]
+        (println (str "  " ns))))
+    (println (str "Total: " (count namespaces) " namespaces\n"))
+
+    ;; Print symbols
     (println (str "Symbols matching '" pattern "':"))
-    (doseq [sym matches]
-      (println (str "  " sym)))
-    (println (str "\nTotal: " (count matches) " matches"))
+    (if (empty? symbols)
+      (println "  (none)")
+      (doseq [sym symbols]
+        (println (str "  " sym))))
+    (println (str "Total: " (count symbols) " symbols\n"))
+
+    ;; Print specs
+    (println (str "Specs matching '" pattern "':"))
+    (if (empty? specs)
+      (println "  (none)")
+      (doseq [spec specs]
+        (println (str "  " spec))))
+    (println (str "Total: " (count specs) " specs"))
+
     nil))
