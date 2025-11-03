@@ -74,7 +74,7 @@
   "Show source code for a var. Accepts symbol or string."
   [sym]
   (if-let [v (resolve (if (symbol? sym) sym (symbol sym)))]
-    (if-let [source-fn (resolve 'clojure.repl/source-fn)]
+    (if-let [source-fn (requiring-resolve 'clojure.repl/source-fn)]
       (println (source-fn (symbol v)))
       (println "Error: clojure.repl/source-fn not available"))
     (println (str "Error: Symbol not found: " sym)))
