@@ -24,6 +24,15 @@ Evaluate Clojure expressions directly in your nREPL server. Claude Code can test
 
 ## Installation
 
+### Prerequisites
+
+1. Ensure [bbin](https://github.com/babashka/bbin) is installed
+
+2. Install clojure-mcp-light:
+```bash
+bbin install https://github.com/bhauman/clojure-mcp-light.git --tag v0.2.0
+```
+
 ### From GitHub
 
 1. Add the marketplace to Claude Code:
