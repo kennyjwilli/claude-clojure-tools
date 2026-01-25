@@ -1,5 +1,5 @@
 ---
-name: clojure-repl-workflow
+name: clojure-repl
 description: REPL-first Clojure development workflow. Use when using the Clojure REPL, exploring namespaces, finding functions, discovering symbols, evaluating Clojure code, writing Clojure code, testing at the REPL, or following the Explore-Verify-Test-Implement pattern.
 ---
 
