@@ -1,39 +1,36 @@
 # Clojure Tools
 
-A Claude Code plugin for Clojure development that automatically formats your code using Parinfer and enables interactive REPL evaluation.
+A Claude Code plugin for Clojure development that automatically formats your code using Parinfer and provides a REPL-first development workflow.
 
 ## Features
 
-### Automatic Parinfer Formatting
+### REPL-First Development Workflow
 
-Every time Claude Code edits or writes a Clojure file, this plugin automatically formats it using [Parinfer's indent mode](https://github.com/parinfer/parinfer). This ensures your code maintains proper indentation and parenthesis structure without manual intervention.
+The plugin includes a skill that guides Claude through a structured REPL-first workflow:
+1. **Explore** - Load and examine existing code
+2. **Verify** - Check function signatures and documentation
+3. **Test** - Validate logic incrementally
+4. **Implement** - Build functions step by step
 
-**Supported file types:**
-- `.clj` - Clojure
-- `.cljs` - ClojureScript
-- `.cljc` - Clojure/ClojureScript
-- `.edn` - Extensible Data Notation
-
-### nREPL Evaluation
-
-Evaluate Clojure expressions directly in your nREPL server. Claude Code can test code snippets, verify function behavior, and debug issues by evaluating expressions in your REPL environment.
-
-**Requirements:**
-- [Babashka](https://babashka.org/) must be installed
-- [Clojure CLI](https://clojure.org/guides/install_clojure) must be installed (required for auto-starting nREPL)
+Uses `clj-nrepl-eval` CLI to evaluate Clojure expressions in your running nREPL server.
 
 ## Installation
 
 ### Prerequisites
 
-1. Ensure [bbin](https://github.com/babashka/bbin) is installed
+Install the required CLI tools:
 
-2. Install clojure-mcp-light:
 ```bash
-bbin install https://github.com/bhauman/clojure-mcp-light.git --tag v0.2.1
+./scripts/install-clojure-repl-tools.sh
 ```
 
-### From GitHub
+This installs:
+- [Babashka](https://babashka.org/) - Fast Clojure scripting
+- [bbin](https://github.com/babashka/bbin) - Babashka binary installer
+- `clj-nrepl-eval` - nREPL evaluation CLI
+- `clj-paren-repair` - Parenthesis repair tool (used by hooks)
+
+### Plugin Installation
 
 1. Add the marketplace to Claude Code:
 ```
@@ -47,28 +44,44 @@ bbin install https://github.com/bhauman/clojure-mcp-light.git --tag v0.2.1
 
 3. Restart Claude Code to activate the plugin
 
-## Configuration
+## Usage
 
-Configuration is **optional** - the plugin works out of the box with sensible defaults. If you need to customize the nREPL behavior, create a `clojure-tools-mcp-config.edn` file in your project root.
+### Starting a REPL Session
 
-### Default Configuration
+1. Start an nREPL server in your project (e.g., `clj -M:dev` or via your editor)
 
-```clojure
-{:nrepl-mode    :always-start
- :nrepl-aliases []
- :nrepl-version "1.5.1"}
+2. Claude will discover the port automatically:
+```bash
+clj-nrepl-eval --discover-ports
 ```
 
-### Configuration Options
+3. Load the REPL helpers for code exploration:
+```bash
+./scripts/load-repl-helpers.sh <PORT>
+```
 
-- **`:nrepl-mode`** - Controls how the nREPL server is managed:
-  - `:always-start` (default) - Automatically starts a new nREPL server when the MCP starts
-  - `:prefer-existing` - Uses an existing nREPL (`.nrepl-port` file) if available, otherwise starts a new one
-  - `:require-existing` - Only uses an existing nREPL, fails if not found
+### REPL Helpers
 
-- **`:nrepl-aliases`** - Vector of aliases to include when starting the nREPL server (e.g., `[:dev :test]`)
+After loading helpers, these functions are available:
 
-- **`:nrepl-version`** - nREPL version string to use (default: `"1.5.1"`)
+```clojure
+;; Namespace exploration
+(list-ns)                    ; List all namespaces
+(list-vars 'namespace)       ; Show public vars with docs
+(doc-namespace 'namespace)   ; View namespace documentation
+
+;; Symbol exploration
+(doc-symbol 'sym)            ; View symbol documentation
+(source-symbol 'sym)         ; Display source code
+(find-symbols "pattern")     ; Find symbols matching pattern
+
+;; Spec exploration
+(find-specs "pattern")       ; Find spec keys matching pattern
+(describe-spec ::key)        ; Show spec information
+
+;; Combined search
+(search-code "pattern")      ; Search namespaces, symbols, and specs
+```
 
 ## Local Installation (for development)
 
