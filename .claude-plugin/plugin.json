@@ -7,6 +7,5 @@
   },
   "repository": "https://github.com/kennyjwilli/claude-clojure-tools.git",
   "license": "MIT",
-  "keywords": ["clojure", "formatting", "parinfer", "development", "repl", "nrepl"],
-  "hooks": "./hooks/hooks.json"
+  "keywords": ["clojure", "formatting", "parinfer", "development", "repl", "nrepl"]
 }
