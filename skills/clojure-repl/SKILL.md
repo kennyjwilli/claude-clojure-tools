@@ -11,15 +11,17 @@ description: REPL-first Clojure development workflow. Use when using the Clojure
 
 **IMPORTANT**: Use the `clj-nrepl-eval` CLI tool via Bash to execute ALL Clojure code examples shown below. This tool connects to your running nREPL server and evaluates code interactively.
 
-## Autonomous Port Discovery
+## Port Discovery
 
-Before using the REPL, discover the nREPL port:
+If the nREPL port has already been provided (e.g., in the system prompt), use it directly—skip discovery.
+
+Otherwise, discover the nREPL port:
 
 ```bash
 clj-nrepl-eval --discover-ports
 ```
 
-**Workflow:**
+**Workflow (only when port is unknown):**
 1. If **ONE port** found -> use it automatically
 2. If **MULTIPLE ports** found -> use AskUserQuestion to let user select
 3. If **NO ports** found -> prompt user to start nREPL
@@ -125,7 +127,7 @@ clj-nrepl-eval -p PORT "(find-symbols \"my-function\")"
 ## Things to Remember
 
 - Use `clj-nrepl-eval -p PORT` for ALL REPL interactions
-- Discover port first with `clj-nrepl-eval --discover-ports`
+- If port is unknown, discover with `clj-nrepl-eval --discover-ports`
 - Load helpers once per session with `./scripts/load-repl-helpers.sh PORT`
 - Use search tools extensively (parallel and sequential) to understand codebase
 - Session state persists between calls - no need to re-require namespaces unless code changed
