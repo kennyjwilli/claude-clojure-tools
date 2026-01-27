@@ -37,12 +37,12 @@ clj-nrepl-eval --discover-ports
 After discovering the port, load the helper functions ONCE per session:
 
 ```bash
-./scripts/load-repl-helpers.sh <PORT>
+<skill base path>/scripts/load-repl-helpers.sh <PORT>
 ```
 
 Example:
 ```bash
-./scripts/load-repl-helpers.sh 61201
+<skill base path>/scripts/load-repl-helpers.sh 61201
 ```
 
 ## The 4-Step Mandatory Workflow
@@ -95,7 +95,7 @@ clj-nrepl-eval -p PORT "(new-function test-data)"
 
 ## REPL Helpers Reference
 
-After loading helpers with `./scripts/load-repl-helpers.sh`, these functions are available:
+After loading helpers with `<skill base path>/scripts/load-repl-helpers.sh`, these functions are available:
 
 ```clojure
 ;; Namespace exploration
@@ -128,7 +128,7 @@ clj-nrepl-eval -p PORT "(find-symbols \"my-function\")"
 
 - Use `clj-nrepl-eval -p PORT` for ALL REPL interactions
 - If port is unknown, discover with `clj-nrepl-eval --discover-ports`
-- Load helpers once per session with `./scripts/load-repl-helpers.sh PORT`
+- Load helpers once per session with `<skill base path>/scripts/load-repl-helpers.sh PORT`
 - Use search tools extensively (parallel and sequential) to understand codebase
 - Session state persists between calls - no need to re-require namespaces unless code changed
 - Use `:reload` when requiring to pick up file changes
