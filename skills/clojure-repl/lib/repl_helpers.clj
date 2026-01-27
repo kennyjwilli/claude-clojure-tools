@@ -179,3 +179,12 @@
     (println (str "Total: " (count specs) " specs"))
 
     nil))
+
+(defn- print-loaded-help
+  "Print a summary of loaded REPL helper functions."
+  []
+  (let [fn-names (->> (ns-publics 'clojure-tools-mcp.repl-tools)
+                      keys
+                      (map name)
+                      sort)]
+    (println (str "REPL helpers loaded: " (str/join ", " fn-names)))))
