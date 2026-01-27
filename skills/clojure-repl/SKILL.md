@@ -31,6 +31,7 @@ clj-nrepl-eval --discover-ports
 - Session state persists between calls (same host:port)
 - No need to re-require namespaces unless code changed
 - Use `:reload` when requiring to pick up file changes
+- Use `--reset-session` to clear all session state
 
 ## Loading REPL Helpers
 
@@ -44,6 +45,15 @@ Example:
 ```bash
 <skill base path>/scripts/load-repl-helpers.sh 61201
 ```
+
+## CLI Options
+
+- `-p, --port PORT` — nREPL port (required for eval)
+- `-H, --host HOST` — nREPL host (default: 127.0.0.1)
+- `-t, --timeout MS` — Timeout in milliseconds (default: 120000)
+- `-r, --reset-session` — Reset persistent session state
+- `-c, --connected-ports` — List previously connected sessions
+- `-d, --discover-ports` — Discover nREPL servers
 
 ## The 4-Step Mandatory Workflow
 
@@ -89,15 +99,28 @@ clj-nrepl-eval -p PORT "(defn new-function [data]
 clj-nrepl-eval -p PORT "(new-function test-data)"
 ```
 
+For complex multi-line code, use heredoc syntax:
+
+```bash
+clj-nrepl-eval -p PORT <<'EOF'
+(defn new-function [data]
+  (let [step1 (verified-function data)]
+    step1))
+EOF
+```
+
 ### Additional Guidelines
 
 - Do not add any extraneous helper functions or utilities beyond what is explicitly requested.
 
 ## REPL Helpers Reference
 
-After loading helpers with `<skill base path>/scripts/load-repl-helpers.sh`, these functions are available:
+After loading helpers with `<skill base path>/scripts/load-repl-helpers.sh`, these functions are available in the `clojure-tools-mcp.repl-tools` namespace:
 
 ```clojure
+;; The load script automatically refers these into your namespace, but you can also:
+(require '[clojure-tools-mcp.repl-tools :refer :all])
+
 ;; Namespace exploration
 (list-ns)                    ; List all namespaces
 (list-ns "pattern")          ; List namespaces matching pattern
@@ -117,18 +140,7 @@ After loading helpers with `<skill base path>/scripts/load-repl-helpers.sh`, the
 (search-code "pattern")      ; Search namespaces, symbols, and specs
 ```
 
-**Important**: Require namespaces with `:reload` before using these tools:
+## Tips
 
-```bash
-clj-nrepl-eval -p PORT "(require 'my.project.core :reload)"
-clj-nrepl-eval -p PORT "(find-symbols \"my-function\")"
-```
-
-## Things to Remember
-
-- Use `clj-nrepl-eval -p PORT` for ALL REPL interactions
-- If port is unknown, discover with `clj-nrepl-eval --discover-ports`
-- Load helpers once per session with `<skill base path>/scripts/load-repl-helpers.sh PORT`
-- Use search tools extensively (parallel and sequential) to understand codebase
-- Session state persists between calls - no need to re-require namespaces unless code changed
-- Use `:reload` when requiring to pick up file changes
+- Use search tools extensively (parallel and sequential) to understand codebase before implementing
+- Do not add extraneous helper functions beyond what is requested

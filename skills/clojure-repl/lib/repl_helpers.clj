@@ -5,15 +5,31 @@
             [clojure.string :as str]))
 
 ;; Namespace exploration
+(defn- pattern->match-fn
+  [pattern]
+  (if (instance? java.util.regex.Pattern pattern)
+    #(re-find pattern %)
+    #(str/includes? % (str pattern))))
+
 (defn list-ns
-  "List all available namespaces, sorted alphabetically."
-  []
-  (let [namespaces (sort (map str (all-ns)))]
-    (println "Available Namespaces:")
-    (doseq [ns-name namespaces]
-      (println (str "  " ns-name)))
-    (println (str "\nTotal: " (count namespaces) " namespaces"))
-    nil))
+  "List namespaces, optionally filtered by pattern.
+   Pattern can be a string (for substring matching) or a regex pattern.
+   With no arguments, lists all namespaces."
+  ([]
+   (list-ns nil))
+  ([pattern]
+   (let [all-nss (sort (map str (all-ns)))
+         namespaces (if pattern
+                      (let [match-fn (pattern->match-fn pattern)]
+                        (filter match-fn all-nss))
+                      all-nss)]
+     (println (if pattern
+                (str "Namespaces matching '" pattern "':")
+                "Available Namespaces:"))
+     (doseq [ns-name namespaces]
+       (println (str "  " ns-name)))
+     (println (str "\nTotal: " (count namespaces) " namespaces"))
+     nil)))
 
 (defn list-vars
   "List all public vars in the given namespace with their arglists and docstrings.
@@ -91,12 +107,6 @@
       (println (str "-------------------------")))
     (println (str "Error: Spec not found: " spec)))
   nil)
-
-(defn- pattern->match-fn
-  [pattern]
-  (if (instance? java.util.regex.Pattern pattern)
-    #(re-find pattern %)
-    #(str/includes? % (str pattern))))
 
 (defn find-namespaces
   "Find namespaces matching the given pattern.

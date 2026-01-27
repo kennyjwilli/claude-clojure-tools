@@ -19,4 +19,4 @@ if [[ ! -f "$HELPERS_PATH" ]]; then
   exit 1
 fi
 
-clj-nrepl-eval -p "$PORT" "(load-file \"$HELPERS_PATH\")"
+clj-nrepl-eval -p "$PORT" "(do (load-file \"$HELPERS_PATH\") (require '[clojure-tools-mcp.repl-tools :refer :all]))"
