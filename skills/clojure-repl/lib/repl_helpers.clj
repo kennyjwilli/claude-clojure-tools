@@ -91,7 +91,10 @@
   [sym]
   (if-let [v (resolve (if (symbol? sym) sym (symbol sym)))]
     (if-let [source-fn (requiring-resolve 'clojure.repl/source-fn)]
-      (println (source-fn (symbol v)))
+      ;; Read in the var's own namespace so auto-resolved alias keywords
+      ;; (::alias/kw) in its source resolve instead of throwing Invalid token.
+      (binding [*ns* (:ns (meta v))]
+        (println (source-fn (symbol v))))
       (println "Error: clojure.repl/source-fn not available"))
     (println (str "Error: Symbol not found: " sym)))
   nil)
