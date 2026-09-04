@@ -5,61 +5,54 @@ description: REPL-first Clojure development workflow. Use when using the Clojure
 
 # Clojure Programming
 
-## MANDATORY: REPL-First Development Protocol
+Every code change follows Explore → Verify → Test → Implement, evaluating through `clj-nrepl-eval` via Bash against the running nREPL.
 
-**CRITICAL REQUIREMENT**: You must ALWAYS follow the "Explore -> Verify -> Test -> Implement" workflow for ALL code changes.
+## Port
 
-**IMPORTANT**: Use the `clj-nrepl-eval` CLI tool via Bash to execute ALL Clojure code examples shown below. This tool connects to your running nREPL server and evaluates code interactively.
-
-## Port Discovery
-
-If the nREPL port has already been provided (e.g., in the system prompt), use it directly—skip discovery.
-
-Otherwise, discover the nREPL port:
+Use the port given in your system prompt. Otherwise discover it:
 
 ```bash
 clj-nrepl-eval --discover-ports
 ```
 
-**Workflow (only when port is unknown):**
-1. If **ONE port** found -> use it automatically
-2. If **MULTIPLE ports** found -> use AskUserQuestion to let user select
-3. If **NO ports** found -> prompt user to start nREPL
+One port → use it; several → ask the user (AskUserQuestion); none → ask the user to start nREPL.
 
-## Session Persistence
+## Session
 
-- Session state persists between calls (same host:port)
-- No need to re-require namespaces unless code changed
-- Use `:reload` when requiring to pick up file changes
-- Use `--reset-session` to clear all session state
+State persists between calls to the same host:port. Re-`require` with `:reload` after file changes; `--reset-session` clears everything.
 
-## Loading REPL Helpers
+## Helpers
 
-After discovering the port, load the helper functions ONCE per session:
+Load once per session:
 
 ```bash
 <skill base path>/scripts/load-repl-helpers.sh <PORT>
 ```
 
-Example:
-```bash
-<skill base path>/scripts/load-repl-helpers.sh 61201
+Then, from `clojure-tools-mcp.repl-tools` (referred into your namespace by the loader):
+
+```clojure
+(list-ns)  (list-ns "pattern")         ; namespaces
+(list-vars 'namespace)                 ; public vars with docs
+(doc-namespace 'namespace)
+(doc-symbol 'symbol-name)              ; docstring
+(source-symbol 'symbol-name)           ; source
+(find-symbols "pattern")
+(find-specs "pattern")  (describe-spec ::spec-key)
+(search-code "pattern")                ; namespaces, symbols, and specs
 ```
 
-## CLI Options
+Helpers see only namespaces already `require`d — an empty result means "not loaded", not "doesn't exist".
 
-- `-p, --port PORT` — nREPL port (required for eval)
-- `-H, --host HOST` — nREPL host (default: 127.0.0.1)
-- `-t, --timeout MS` — Timeout in milliseconds (default: 120000)
-- `-r, --reset-session` — Reset persistent session state
-- `-c, --connected-ports` — List previously connected sessions
-- `-d, --discover-ports` — Discover nREPL servers
+## CLI
 
-## The 4-Step Mandatory Workflow
+- `-p, --port PORT` (required for eval); `-H, --host HOST` (default 127.0.0.1)
+- `-t, --timeout MS` (default 120000)
+- `-r, --reset-session`; `-c, --connected-ports`; `-d, --discover-ports`
 
-### 1. EXPLORE Existing Code
+## The workflow
 
-Use `clj-nrepl-eval` via Bash to load and examine relevant namespaces:
+**Explore** what exists:
 
 ```bash
 clj-nrepl-eval -p PORT "(require '[target.namespace :as tn] :reload)"
@@ -67,80 +60,30 @@ clj-nrepl-eval -p PORT "(list-vars 'target.namespace)"
 clj-nrepl-eval -p PORT "(find-symbols \"relevant-keyword\")"
 ```
 
-### 2. VERIFY Function Existence & Signatures
-
-**NEVER assume functions exist. Always verify:**
+**Verify** every function you intend to call — never assume it exists:
 
 ```bash
 clj-nrepl-eval -p PORT "(doc-symbol 'namespace/function-name)"
 clj-nrepl-eval -p PORT "(source-symbol 'namespace/function-name)"
 ```
 
-### 3. TEST Logic Incrementally
-
-Create test data and validate each step:
+**Test** each step on real-shaped data:
 
 ```bash
 clj-nrepl-eval -p PORT "(def test-data {:example \"real-data-structure\"})"
 clj-nrepl-eval -p PORT "(namespace/verified-function test-data)"
 ```
 
-### 4. IMPLEMENT Step by Step
-
-Build functions incrementally, testing each piece:
-
-```bash
-clj-nrepl-eval -p PORT "(defn new-function [data]
-  (let [step1 (verified-function data)
-        step2 (another-function step1)]
-    step2))"
-
-# Validate immediately
-clj-nrepl-eval -p PORT "(new-function test-data)"
-```
-
-For complex multi-line code, use heredoc syntax:
+**Implement** incrementally, validating each piece; heredoc for multi-line forms:
 
 ```bash
 clj-nrepl-eval -p PORT <<'EOF'
 (defn new-function [data]
-  (let [step1 (verified-function data)]
-    step1))
+  (let [step1 (verified-function data)
+        step2 (another-function step1)]
+    step2))
 EOF
+clj-nrepl-eval -p PORT "(new-function test-data)"
 ```
 
-### Additional Guidelines
-
-- Do not add any extraneous helper functions or utilities beyond what is explicitly requested.
-
-## REPL Helpers Reference
-
-After loading helpers with `<skill base path>/scripts/load-repl-helpers.sh`, these functions are available in the `clojure-tools-mcp.repl-tools` namespace:
-
-```clojure
-;; The load script automatically refers these into your namespace, but you can also:
-(require '[clojure-tools-mcp.repl-tools :refer :all])
-
-;; Namespace exploration
-(list-ns)                    ; List all namespaces
-(list-ns "pattern")          ; List namespaces matching pattern
-(list-vars 'namespace)       ; Show public vars in namespace with docs
-(doc-namespace 'namespace)   ; View namespace documentation
-
-;; Symbol exploration
-(doc-symbol 'symbol-name)    ; View symbol documentation
-(source-symbol 'symbol-name) ; Display source code
-(find-symbols "pattern")     ; Find symbols matching pattern
-
-;; Spec exploration
-(find-specs "pattern")       ; Find spec keys matching pattern
-(describe-spec ::spec-key)   ; Show spec information
-
-;; Combined search
-(search-code "pattern")      ; Search namespaces, symbols, and specs
-```
-
-## Tips
-
-- Use search tools extensively (parallel and sequential) to understand codebase before implementing
-- Do not add extraneous helper functions beyond what is requested
+No helper functions or utilities beyond what was requested.
