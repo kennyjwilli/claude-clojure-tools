@@ -21,25 +21,36 @@ One port → use it; several → ask the user (AskUserQuestion); none → ask th
 
 State persists between calls to the same host:port. Re-`require` with `:reload` after file changes; `--reset-session` clears everything.
 
-## Helpers
+## Loading REPL Helpers
 
-Load once per session:
+Once per session:
 
 ```bash
 <skill base path>/scripts/load-repl-helpers.sh <PORT>
 ```
 
-Then, from `clojure-tools-mcp.repl-tools` (referred into your namespace by the loader):
+## REPL Helpers Reference
+
+The loader refers these into your namespace from `clojure-tools-mcp.repl-tools`; elsewhere, `(require '[clojure-tools-mcp.repl-tools :refer :all])`.
 
 ```clojure
-(list-ns)  (list-ns "pattern")         ; namespaces
-(list-vars 'namespace)                 ; public vars with docs
-(doc-namespace 'namespace)
-(doc-symbol 'symbol-name)              ; docstring
-(source-symbol 'symbol-name)           ; source
-(find-symbols "pattern")
-(find-specs "pattern")  (describe-spec ::spec-key)
-(search-code "pattern")                ; namespaces, symbols, and specs
+;; Namespaces
+(list-ns)                    ; all namespaces
+(list-ns "pattern")          ; namespaces matching pattern
+(list-vars 'namespace)       ; public vars with docs
+(doc-namespace 'namespace)   ; namespace documentation
+
+;; Symbols
+(doc-symbol 'symbol-name)    ; documentation
+(source-symbol 'symbol-name) ; source code
+(find-symbols "pattern")     ; symbols matching pattern
+
+;; Specs
+(find-specs "pattern")       ; spec keys matching pattern
+(describe-spec ::spec-key)   ; spec information
+
+;; Combined
+(search-code "pattern")      ; namespaces, symbols, and specs
 ```
 
 Helpers see only namespaces already `require`d — an empty result means "not loaded", not "doesn't exist".
