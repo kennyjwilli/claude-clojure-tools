@@ -5,7 +5,7 @@ description: REPL-first Clojure development workflow. Use when using the Clojure
 
 # Clojure Programming
 
-Every code change follows Explore → Verify → Test → Implement, evaluating through `clj-nrepl-eval` via Bash against the running nREPL.
+Every code change follows Explore → Verify → Test → Implement, evaluating through the `clj-nrepl-eval` CLI against the running nREPL.
 
 ## Port
 
